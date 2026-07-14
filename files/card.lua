@@ -23,7 +23,12 @@
 --
 -- Data shapes (all strings PRE-localized — this file does no $key lookup):
 --   meta = { name, description, sprite, max_uses }
---     description : string, or a LIST of strings (one per line), or nil
+--     description : string, or a LIST of lines, or nil. A line is either a plain
+--                   string, or a list of SPANS to colour words individually:
+--                     { "plain ", { t = "red bit", r = 1, g = 0.3, b = 0.3 }, "!" }
+--                   (Noita draws one GuiText in one colour, so a multi-colour line
+--                   is several GuiTexts laid end to end — we measure each span and
+--                   advance x by its width. Vanilla never does this; nothing stops us.)
 --     max_uses    : >= 0 appends " (N)" to the title, like limited-use spells
 --   rows = { { icon, label, value, adv }, ... }
 --     adv : y advance after the row; default PITCH (8). Use PITCH*2 (16) for
@@ -86,6 +91,33 @@ local function desc_lines(meta)
 	return d
 end
 
+-- A line -> its list of spans. A plain string is a single, default-coloured span.
+local function spans_of(line)
+	if type(line) == "string" then return { { t = line } } end
+	local out = {}
+	for i, s in ipairs(line) do
+		out[i] = (type(s) == "string") and { t = s } or s
+	end
+	return out
+end
+
+-- Width of a line in GUI units: the spans laid end to end.
+local function line_width(gui, line)
+	local w = 0
+	for _, s in ipairs(spans_of(line)) do w = w + select(1, gui.text_dims(s.t or "")) end
+	return w
+end
+
+-- Draw one line at (x, y), span by span, each in its own colour. `id` is the base
+-- widget id for the line; spans take id, id+1, ... (ids must stay stable per frame).
+local function draw_line(gui, id, x, y, line)
+	for i, s in ipairs(spans_of(line)) do
+		gui.text_ex(id + i - 1, x, y, s.t or "",
+			s.r or M.TEXT_R, s.g or M.TEXT_G, s.b or M.TEXT_B, 1, 1, M.FONT)
+		x = x + select(1, gui.text_dims(s.t or ""))
+	end
+end
+
 local function sprite_size(gui, meta)
 	local w, h = 16, 16
 	if meta.sprite then
@@ -112,7 +144,7 @@ function M.card_size(ctx, meta, rows)
 	rows = rows or {}
 	local text_w = select(1, gui.text_dims(title_of(meta)))
 	for _, line in ipairs(desc_lines(meta)) do
-		text_w = math.max(text_w, select(1, gui.text_dims(line)))
+		text_w = math.max(text_w, line_width(gui, line))
 	end
 	local col_w = math.max(M.MIN_W, text_w)
 	local sw, sh = sprite_size(gui, meta)
@@ -166,9 +198,10 @@ function M.draw_card(ctx, rect, meta, rows)
 
 	gui.text_ex(base + 1, x + M.NAME_Y, y + M.NAME_Y, title_of(meta),
 		M.TEXT_R, M.TEXT_G, M.TEXT_B, 1, 1, M.FONT)
+	-- Description lines. Each line gets an id block of 10 (base+10, base+20, ...) so
+	-- its spans have room for stable, non-colliding ids.
 	for i, line in ipairs(desc_lines(meta)) do
-		gui.text_ex(base + 1 + i, x + M.NAME_Y, y + M.SUB_Y + (i - 1) * M.DESC_LINE, line,
-			M.TEXT_R, M.TEXT_G, M.TEXT_B, 1, 1, M.FONT)
+		draw_line(gui, base + 10 * i, x + M.NAME_Y, y + M.SUB_Y + (i - 1) * M.DESC_LINE, line)
 	end
 	if meta.sprite then
 		gui.image(base + 3, x + card_w - sw - 5, math.floor(y + (card_h - sh) * 0.5),
