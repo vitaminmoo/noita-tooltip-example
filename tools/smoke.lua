@@ -98,7 +98,7 @@ local joined = table.concat(text, "\n")
 check(joined:find("SPARK BOLT", 1, true), "title is uppercased")
 check(not joined:find("SPARK BOLT (", 1, true), "unlimited-use spell gets no (N) suffix")
 check(joined:find("A weak but enchanting sparkling projectile", 1, true), "vanilla description line kept")
-check(joined:find("Cheap, fast, and always there.", 1, true), "the added description line is drawn")
+check(joined:find("Is this what you're after, GrahamBurger?", 1, true), "the added description line is drawn")
 for _, v in ipairs({ "Type", "Projectile", "Mana drain", "5", "Damage", "3", "Speed", "800",
 	"Cast delay", "+0.05 s", "Spread", "-1 DEG", "Crit. Chance", "+5%" }) do
 	check(joined:find(v, 1, true), "native card content present: " .. v)

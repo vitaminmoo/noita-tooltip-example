@@ -37,9 +37,9 @@ local gui = dofile_once(BASE .. "gui.lua")
 local TARGET_ACTION = "LIGHT_BULLET" -- Spark Bolt (ItemActionComponent.action_id)
 
 -- The whole point of the mod: a second description line the native card cannot draw.
--- (Keep it no wider than the vanilla line or the card grows — width is set by the
--- longest title/description line, exactly as the native size formula does it.)
-local EXTRA_DESC_LINE = "Cheap, fast, and always there."
+-- (A line wider than the vanilla one grows the card — width is set by the longest
+-- title/description line, exactly as the native size formula does it.)
+local EXTRA_DESC_LINE = "Is this what you're after, GrahamBurger?"
 
 -- ---- localization ------------------------------------------------------------
 -- "$key" -> the player's language, like the game does. Plain strings pass through.

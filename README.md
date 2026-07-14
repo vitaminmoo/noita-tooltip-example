@@ -11,7 +11,7 @@ only file you'd rewrite for your own mod.
 ```
 SPARK BOLT
 A weak but enchanting sparkling projectile
-Cheap, fast, and always there.          <- added by this mod
+Is this what you're after, GrahamBurger?   <- added by this mod
  [] Type          Projectile
  [] Mana drain    5
 
