@@ -90,7 +90,14 @@ local function spark_bolt_card()
 		{ icon = IC .. "icon_spread_degrees.png", label = loc("$inventory_mod_spread"),
 			value = unit("$inventory_degrees", "-1"), adv = PITCH },
 		{ icon = IC .. "icon_damage_critical_chance.png", label = loc("$inventory_mod_critchance"),
-			value = "+5%", adv = PITCH },
+			value = "+5%", adv = GAP }, -- GAP: blank line, so our row reads as its own group
+
+		-- A row the game has no idea about. Rows are just data — icon, label, value —
+		-- so a custom one costs exactly as much as a real one. The icon ships with the
+		-- mod (7x7 PNG, the size vanilla's row icons are); any 'data/...' path works too
+		-- (e.g. icon_speed_multiplier.png is the game's own "x N" multiplier icon).
+		{ icon = "mods/noita-tooltip-example/files/icon_grahams.png", label = "Grahams",
+			value = "x2", adv = PITCH },
 	}
 	return meta, rows
 end

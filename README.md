@@ -1,9 +1,9 @@
 # noita-tooltip-example
 
 A minimal, self-contained example of **overriding Noita's item/spell hover
-card**: hover Spark Bolt and you get its normal card with **one extra
-description line**. Every other item and spell keeps its untouched native
-tooltip.
+card**: hover Spark Bolt and you get its normal card plus **an extra description
+line and a custom stat row**. Every other item and spell keeps its untouched
+native tooltip.
 
 Four files, ~400 lines, most of it comments. Read `init.lua` first — it's the
 only file you'd rewrite for your own mod.
@@ -21,6 +21,8 @@ Is this what you're after, GrahamBurger?   <- added by this mod
  [] Cast delay    +0.05 s
  [] Spread        -1 DEG
  [] Crit. Chance  +5%
+
+ () Grahams       x2                    <- added by this mod (mod-shipped icon)
 ```
 
 ## Why a hook is needed at all
@@ -40,6 +42,7 @@ So the only lever is: **stop it from drawing, and draw your own in its place.**
 | `files/cardhook.lua` | The hook. Detours the native renderer: records **where** each card goes (screen anchor) and **what** it's for (item entity), and can turn the native draw into a no-op. Copy it as-is. |
 | `files/card.lua` | A pixel replica of the native card (geometry, font, grey tint, fade-in, auto-size, placement, bottom-of-screen flip) — so your card is indistinguishable from the game's, except for what you changed. Also allows a **multi-line description**, which vanilla can't do. |
 | `files/gui.lua` | The handful of `Gui*` calls the replica needs. |
+| `files/icon_grahams.png` | A 7x7 icon for the custom row — the size vanilla's row icons are. Mod-shipped art works anywhere a `data/...` icon does. |
 | `init.lua` | **Your code.** Per frame: is the hovered item Spark Bolt? If not, unblank and let the native card render. If so, blank it and draw ours. |
 
 The card content in `init.lua` is written out by hand. That's the point of a
@@ -67,9 +70,12 @@ luajit tools/smoke.lua     # prints an ASCII render + asserts the layout
 - **Different spell:** change `TARGET_ACTION` (the `action_id` — e.g.
   `SPITTER`, `BOMB`, `LIGHT_BULLET_TRIGGER`) and rewrite the rows in
   `spark_bolt_card()` to match that spell's card.
-- **Extra rows instead of a line:** append to `rows` — `{ icon, label, value,
-  adv }`. `adv` is the y-advance after the row: `8` = next line, `16` = leave a
-  blank divider line (what the native card does between stat groups).
+- **Extra rows:** append to `rows` — `{ icon, label, value, adv }`, like the
+  "Grahams x2" row does. `adv` is the y-advance after the row: `8` = next line,
+  `16` = leave a blank divider line (what the native card does between stat
+  groups). The icon is any path: mod-shipped art, or a vanilla one such as
+  `data/ui_gfx/inventory/icon_speed_multiplier.png` (the game's own "x N"
+  multiplier icon).
 - **Many spells:** you have to *derive* each card's rows rather than write them
   out — bake `gun_actions.lua` the way the game does and read the projectile XML.
   That's a big chunk of code; [`noita-spell-tooltips`](../noita-spell-tooltips)

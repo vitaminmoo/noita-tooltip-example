@@ -103,6 +103,14 @@ for _, v in ipairs({ "Type", "Projectile", "Mana drain", "5", "Damage", "3", "Sp
 	"Cast delay", "+0.05 s", "Spread", "-1 DEG", "Crit. Chance", "+5%" }) do
 	check(joined:find(v, 1, true), "native card content present: " .. v)
 end
+check(joined:find("Grahams", 1, true) and joined:find("x2", 1, true), "the custom stat row is drawn")
+
+-- The custom row's icon ships with the mod (not a data/ path).
+local custom_icon = false
+for _, d in ipairs(draws) do
+	if d.k == "img" and d.s == "mods/noita-tooltip-example/files/icon_grahams.png" then custom_icon = true end
+end
+check(custom_icon, "the custom row icon is drawn")
 
 -- Geometry: two description lines push the row block down exactly one line (8px)
 -- from the native 37, and the first row sits there.
@@ -118,5 +126,6 @@ for _, d in ipairs(draws) do if d.k == "txt" then ys[d.s] = d.y - y end end
 check(ys["Damage"] - ys["Mana drain"] == 16, "blank line after the header block")
 check(ys["Cast delay"] - ys["Speed"] == 16, "blank line before the modifier block")
 check(ys["Spread"] - ys["Cast delay"] == 8, "8px pitch inside a block")
+check(ys["Grahams"] - ys["Crit. Chance"] == 16, "blank line before the custom row")
 
 print("\nOK — card reproduces the native Spark Bolt card, plus one description line.")
