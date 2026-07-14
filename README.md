@@ -244,3 +244,8 @@ this repo stands alone.)
 - **One hooker per process.** Don't run this alongside any other mod that
   overrides tooltips — they'd hook the same function, and only the first one to
   patch it wins (the loser fails safely and does nothing).
+
+## License
+
+MIT — do whatever you like with it. Copy the hook, the renderer, or the whole
+thing into your own mod; no attribution required (though it's always welcome).
