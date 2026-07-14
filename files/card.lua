@@ -30,9 +30,12 @@
 --                   is several GuiTexts laid end to end — we measure each span and
 --                   advance x by its width. Vanilla never does this; nothing stops us.)
 --     max_uses    : >= 0 appends " (N)" to the title, like limited-use spells
---   rows = { { icon, label, value, adv }, ... }
---     adv : y advance after the row; default PITCH (8). Use PITCH*2 (16) for
---           the blank divider line the native card puts between stat groups.
+--   rows = { { icon, label, value, adv, r, g, b }, ... }
+--     adv     : y advance after the row; default PITCH (8). Use PITCH*2 (16) for
+--               the blank divider line the native card puts between stat groups.
+--     r, g, b : optional 0..1 colour for the row's label AND value. Omit for the
+--               native grey. (The native card paints every row the same colour;
+--               a row that stands out is one more thing it cannot do.)
 
 local M = {}
 
@@ -211,13 +214,14 @@ function M.draw_card(ctx, rect, meta, rows)
 	local row_y = row0_y(meta)
 	for j, r in ipairs(rows) do
 		local ry = y + row_y
+		local rr, rg, rb = r.r or M.TEXT_R, r.g or M.TEXT_G, r.b or M.TEXT_B
 		if r.icon then gui.image(base + 100 + j, x + M.ICON_X, ry + M.ICON_DY, r.icon, 1, 1) end
 		if r.label and r.label ~= "" then
 			gui.text_ex(base + 200 + j, x + M.LABEL_X, ry + M.TEXT_DY, r.label,
-				M.TEXT_R, M.TEXT_G, M.TEXT_B, 1, 1, M.FONT)
+				rr, rg, rb, 1, 1, M.FONT)
 		end
 		gui.text_ex(base + 300 + j, x + M.VALUE_X, ry + M.TEXT_DY, r.value or "",
-			M.TEXT_R, M.TEXT_G, M.TEXT_B, 1, 1, M.FONT)
+			rr, rg, rb, 1, 1, M.FONT)
 		row_y = row_y + (r.adv or M.PITCH)
 	end
 

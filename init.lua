@@ -94,6 +94,21 @@ CARDS.LIGHT_BULLET = function()
 		-- the projectile's own stats
 		{ icon = IC .. "icon_damage_projectile.png", label = loc("$inventory_damage"),
 			value = "3", adv = PITCH },
+
+		-- ADDITION 2: a second damage type. The native card prints exactly one damage
+		-- number (damage.projectile) — a projectile can carry any of the engine's
+		-- damage types, and mods can invent their own, but none of them are shown.
+		-- Here's what one looks like when it is.
+		-- The label follows the game's own wording for damage-type rows: the vanilla
+		-- keys $inventory_mod_damage_slice / _explosion / _ice read "Dmg. Slice",
+		-- "Dmg. Expl", "Dmg. Ice" — so a `cute` damage type is "Dmg. Cute". Match the
+		-- convention and a made-up stat reads as if it had always been there.
+		-- r/g/b colours the label AND value; omit them for the native grey.
+		-- (Labels live at x=17, values at a FIXED x=75 — keep labels short enough to
+		-- clear it; the value column does not move to make room.)
+		{ icon = MINE .. "icon_cute.png", label = "Dmg. Cute", value = "7", adv = PITCH,
+			r = 0.96, g = 0.44, b = 0.66 }, -- pink
+
 		{ icon = IC .. "icon_speed_multiplier.png", label = loc("$inventory_speed"),
 			value = "800", adv = GAP },
 		-- what casting it does to the wand
@@ -104,7 +119,7 @@ CARDS.LIGHT_BULLET = function()
 		{ icon = IC .. "icon_damage_critical_chance.png", label = loc("$inventory_mod_critchance"),
 			value = "+5%", adv = GAP },
 
-		-- ADDITION 2: a stat the game has no concept of. A row is just data —
+		-- ADDITION 3: a stat the game has no concept of. A row is just data —
 		-- icon, label, value, advance — so a made-up one costs exactly what a real
 		-- one costs. The icon ships with the mod (7x7, the size vanilla's are); a
 		-- vanilla 'data/...' path works just as well.

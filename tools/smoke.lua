@@ -133,17 +133,31 @@ for _, v in ipairs({ "Type", "Projectile", "Mana drain", "5", "Damage", "3", "Sp
 	check(txt:find(v, 1, true), "native card content present: " .. v)
 end
 check(txt:find("Graham", 1, true) and txt:find("x2", 1, true), "the custom stat row is drawn")
+check(txt:find("Dmg. Cute", 1, true), "the extra damage-type row is drawn")
 
-local custom_icon = false
+local icons = {}
 for _, dr in ipairs(d) do
-	if dr.k == "img" and dr.s:find("icon_graham.png", 1, true) then custom_icon = true end
+	if dr.k == "img" then icons[#icons + 1] = dr.s end
 end
-check(custom_icon, "the custom row's mod-shipped icon is drawn")
+check(table.concat(icons, " "):find("icon_graham.png", 1, true), "the custom row's mod-shipped icon is drawn")
+check(table.concat(icons, " "):find("icon_cute.png", 1, true), "the pink row's mod-shipped icon is drawn")
+
+-- A coloured row tints BOTH its label and its value, and only that row: every other
+-- row stays the native grey.
+local function drawn(s)
+	for _, dr in ipairs(d) do if dr.k == "txt" and dr.s == s then return dr end end
+end
+local function is_pink(dr) return dr.c and dr.c[1] > 0.9 and dr.c[2] < 0.6 and dr.c[3] > 0.5 and dr.c[3] < 0.8 end
+check(is_pink(drawn("Dmg. Cute")), "the Dmg. Cute label is pink")
+check(is_pink(drawn("7")), "the Dmg. Cute value is pink")
+check(not is_pink(drawn("Graham")), "an uncoloured row keeps the native grey")
 
 -- Geometry: a 2nd description line pushes the row block down exactly one line (8px)
 -- from the native first-row y of 37.
 check(ys["Type"] == 37 + 8 + card.TEXT_DY, "rows shift one line for the 2nd desc line, got " .. tostring(ys["Type"]))
 check(ys["Damage"] - ys["Mana drain"] == 16, "blank line after the header block")
+check(ys["Dmg. Cute"] - ys["Damage"] == 8, "the pink row sits in the projectile-stats block, 8px pitch")
+check(ys["Speed"] - ys["Dmg. Cute"] == 8, "...and pushes Speed down one line, not out of the block")
 check(ys["Cast delay"] - ys["Speed"] == 16, "blank line before the modifier block")
 check(ys["Spread"] - ys["Cast delay"] == 8, "8px pitch inside a block")
 check(ys["Graham"] - ys["Crit. Chance"] == 16, "blank line before the custom row")
@@ -161,5 +175,5 @@ check(not txt2:find("Speed", 1, true), "a modifier has no projectile-stats block
 check(ys2["Type"] == 37 + card.TEXT_DY, "a single-description card keeps the native first-row y")
 check(ys2["Cast delay"] - ys2["Mana drain"] == 16, "blank line after the header block")
 
-print("\nOK — Spark Bolt: native card + 1 description line + 1 custom row.")
+print("\nOK — Spark Bolt: native card + 1 description line + 2 custom rows (one pink).")
 print("     Damage Plus: native card reproduced exactly.")

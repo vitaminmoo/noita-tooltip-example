@@ -5,9 +5,10 @@
 A minimal, self-contained, working example — and a guide to doing it for whatever
 card you like. Two cards are overridden:
 
-- **Spark Bolt** — its native card, plus three things vanilla physically cannot
-  do: a **second description line**, a **word in red**, and a **custom stat row**
-  with a mod-shipped icon.
+- **Spark Bolt** — its native card, plus four things vanilla physically cannot do:
+  a **second description line**, a **word in red**, a **second damage type**
+  (`Dmg. Cute`, in pink — the card only ever prints one damage number), and a
+  **custom stat row**, both with mod-shipped icons.
 - **Damage Plus** — its native card **reproduced exactly**, nothing added. That's
   the fidelity test: toggle the mod, hover it, and you should see no difference.
 
@@ -22,8 +23,9 @@ Is this what you're after, GrahamBurger?
 [] Mana drain    5
                                                [] Cast delay    +0.08 s
 [] Damage        3                             [] Damage        +10
-[] Speed         800
-                                               (byte-for-byte the native card)
+() Dmg. Cute     7    <- pink; a damage type
+[] Speed         800     the card never prints  (byte-for-byte the native card)
+
 [] Cast delay    +0.05 s
 [] Spread        -1 DEG
 [] Crit. Chance  +5%
@@ -84,7 +86,7 @@ render behind the cursor.
 | `files/cardhook.lua` | The hook: detour, capture, blank. The only code that touches memory. | no — copy as-is |
 | `files/card.lua` | Pixel replica of the native card — geometry, font, tint, fade-in, auto-size, placement, bottom-of-screen flip. Adds multi-line descriptions and coloured spans. Every layout constant is a tweakable field. | rarely |
 | `files/gui.lua` | The handful of `Gui*` calls the replica needs. | no |
-| `files/icon_graham.png` | 7×7 icon for the custom row — the size vanilla's row icons are. | swap in your own art |
+| `files/icon_graham.png`, `files/icon_cute.png` | 7×7 icons for the custom rows — the size vanilla's row icons are. | swap in your own art |
 | `tools/smoke.lua` | Renders every card in `CARDS` as ASCII, headless, and asserts the layout. Dev-only; the game never loads it. | use it |
 
 ## Install / run
@@ -179,10 +181,20 @@ Get these wrong and the card reads as subtly "off" even when every value is righ
   `{ "plain ", { t = "red", r = 0.9, g = 0.2, b = 0.2 }, " plain" }`. Noita draws
   one `GuiText` in one colour, so `card.lua` lays the spans end to end, measuring
   each one. Works on any line.
-- **Rows the game has no concept of** — a row is just `{ icon, label, value, adv }`.
-  `Graham x2` costs exactly what a real stat costs. The icon is any path: your own
-  art (7×7 matches vanilla) or a stock one like
-  `data/ui_gfx/inventory/icon_speed_multiplier.png`.
+- **Rows the game has no concept of** — a row is just
+  `{ icon, label, value, adv, r, g, b }`. `Graham x2` costs exactly what a real
+  stat costs. The icon is any path: your own art (7×7 matches vanilla) or a stock
+  one like `data/ui_gfx/inventory/icon_speed_multiplier.png`.
+- **Colour a whole row** — `r, g, b` on a row tints its label *and* value; omit
+  them for the native grey. Vanilla paints every row the same colour, so this is
+  how a row says *look at me*: `Dmg. Cute 7` is pink.
+- **Stats the card refuses to show** — a projectile can carry any of the engine's
+  damage types (and mods can add their own), but the native card prints exactly
+  one damage number. `Dmg. Cute` is a second one. Note the *label*: vanilla words
+  these rows `Dmg. Slice` / `Dmg. Expl` / `Dmg. Ice`
+  (`$inventory_mod_damage_slice`, …), so a made-up stat that follows the
+  convention reads as if it had always been there. Match the game's wording and
+  people stop noticing the seam.
 - **Anything else in `card.lua`** — every layout constant is a field you can
   reassign (`card.CARD_VOFF = 40`, `card.TEXT_R = 1`, …).
 
