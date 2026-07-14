@@ -214,21 +214,70 @@ whatever component identifies them (`AbilityComponent`,
 `MaterialInventoryComponent`, …) and the same capture → blank → draw loop applies.
 `card.lua` neither knows nor cares that it's drawing a spell.
 
-## Doing this for *every* spell
+## The next step: derive every card, then edit it differentially
 
-This example writes its card content **by hand**, because it claims two cards. To
-claim all ~400 you'd stop writing rows and start *deriving* them: bake
-`gun_actions.lua` the way the game does (run each `action()` against a stub `c`
-table to collect its deltas) and parse the projectile XML chain, `<Base>`
-inheritance included — then feed the result through the conversion table above.
-It's a meaningful chunk of code, but nothing here changes: same hook, same
-capture, same replica renderer, same `(meta, rows)` shape. Only the *source* of
-the rows changes, from hand-written to computed.
+This example writes its cards **by hand**, because it claims two. That doesn't
+scale, and — more importantly — it makes every change all-or-nothing: to touch one
+row of a spell's card you must first reimplement the whole card. Both problems
+have the same fix, and neither touches the hook or the renderer. Only the *source*
+of `rows` changes.
 
-(There are private mods of ours that already do this — a generalised hook library
-plus a consumer that derives every spell's stats, including the hidden ones. They
-aren't published, so treat them as an existence proof rather than a dependency:
-this repo stands alone.)
+**Derive the cards.** Everything the native card prints is recoverable at runtime
+from the game's own data. `data/scripts/gun/gun_actions.lua` is `dofile`-able and
+gives you each spell's name, sprite, type, mana and uses. Its stats aren't stored
+anywhere — they're *executed*: `action()` mutates a global `c` (~65 fields) and
+calls `add_projectile(path)`. So run `action()` yourself against a stub `c`, diff
+it against the defaults, and read the projectile XML (following `<Base>`) for
+damage and speed. That's the same computation the game performs at load, so it
+matches by construction rather than by hand-transcription. Then apply the
+conversions from the recipe above.
+
+Reckon on ~800 lines, half of it edge cases: actions with RNG or conditionals,
+trigger/multicast wrappers, and exact float parity (trailing zeros make a card
+read "off" long before it reads wrong).
+
+**Then edit differentially.** Once cards are derived, a mod stops *authoring*
+cards and starts *amending* them. Give every generated row a stable semantic key
+(`"damage"`, `"cast_delay"`, `"mana"`) and register decorators against the derived
+card instead of replacing it:
+
+```lua
+decorate("LIGHT_BULLET", function(c)
+    c.add_desc_line({ "Cheap and ", { t = "reliable", r = .9, g = .2, b = .2 } })
+    c.add_row{ label = "Dmg / mana", value = "0.6", after = "mana" }
+    c.set_row_value("cast_delay", "+3 frames")   -- re-unit one row
+    c.hide_row("spread")                          -- drop noise
+end)
+
+decorate({ type = "modifier" }, function(c)       -- match by predicate, not just id
+    c.add_row{ label = "Recoil", value = c.template.recoil }   -- a stat vanilla hides
+end)
+```
+
+The keys are what make this work: a decorator can add, remove, reorder or rewrite
+*part* of a card without knowing the rest of its shape, and it keeps working when a
+spell's row set differs. Index-based edits break the moment they meet a spell with
+one row fewer.
+
+**Why it's worth it.** The game hard-codes a display policy: of the ~65 fields a
+spell can modify, the card prints **18**. Lifetime, gravity, recoil, screenshake,
+materials, friendly fire — silently dropped. (Damage Plus adds gore and recoil;
+its card says nothing.) The biggest omission isn't even a number:
+`c.extra_entities` and `c.game_effect_entities` are entity lists encoding what a
+spell actually *does* — homing, piercing, orbiting, on-hit effects — and no card
+ever shows them.
+
+Derive the rows and that policy becomes yours: surface the hidden fields, turn the
+entity lists into prose ("Homes toward enemies", "Curses on hit"), show frames as
+well as seconds, add stats the game never computed (damage per mana), re-order,
+hide noise, colour-code. Modded spells come along free — bake at world-init and
+you're iterating the post-mod action table.
+
+**Two rules once you claim every card.** Wrap each spell's build in `pcall` and
+fall back to the native card on error — a derivation bug now shows on *every*
+hover, and a silently-correct vanilla card beats a confidently-wrong custom one.
+And regression-test the bake offline: it's pure Lua over data files, so `luajit`
+can dump every spell's rows against an unpacked `data.wak` with no game running.
 
 ## Caveats
 
