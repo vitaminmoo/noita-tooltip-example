@@ -216,19 +216,19 @@ whatever component identifies them (`AbilityComponent`,
 
 ## Doing this for *every* spell
 
-This example writes its card content **by hand**, because it claims two cards. For
-all ~400 you must *derive* the rows instead: bake `gun_actions.lua` the way the
-game does (run each `action()` against a stub `c` table) and parse the projectile
-XML chain, `<Base>` inheritance and all. That's a big chunk of code — and it
-already exists:
+This example writes its card content **by hand**, because it claims two cards. To
+claim all ~400 you'd stop writing rows and start *deriving* them: bake
+`gun_actions.lua` the way the game does (run each `action()` against a stub `c`
+table to collect its deltas) and parse the projectile XML chain, `<Base>`
+inheritance included — then feed the result through the conversion table above.
+It's a meaningful chunk of code, but nothing here changes: same hook, same
+capture, same replica renderer, same `(meta, rows)` shape. Only the *source* of
+the rows changes, from hand-written to computed.
 
-- **[noita-tooltips-lib](../noita-tooltips-lib)** — the same hook + replica
-  renderer as here, generalised into a registry so several mods can share one hook.
-- **[noita-spell-tooltips](../noita-spell-tooltips)** — a consumer that derives
-  every spell's stats, including the hidden ones the native card omits.
-
-Start there if you want more than a handful of cards. Start **here** if you want to
-understand what they're doing.
+(There are private mods of ours that already do this — a generalised hook library
+plus a consumer that derives every spell's stats, including the hidden ones. They
+aren't published, so treat them as an existence proof rather than a dependency:
+this repo stands alone.)
 
 ## Caveats
 
@@ -241,5 +241,6 @@ understand what they're doing.
   `noita.exe`, ASLR off. On any other build the prologue check fails, `install()`
   returns `false`, **nothing is patched**, and vanilla tooltips keep working.
   Fail-safe is the design, not a bonus.
-- **Don't run it alongside** `noita-qol`'s tooltip override, `noita-tooltips-lib`
-  or `noita-spell-tooltips` — they hook the same function.
+- **One hooker per process.** Don't run this alongside any other mod that
+  overrides tooltips — they'd hook the same function, and only the first one to
+  patch it wins (the loser fails safely and does nothing).
