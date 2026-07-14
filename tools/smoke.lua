@@ -63,6 +63,10 @@ end
 function EntityGetFirstComponentIncludingDisabled() return 1 end
 function ComponentGetValue2() return "LIGHT_BULLET" end
 
+-- Animated rows are a function of the frame number, so the test drives the clock.
+local frame = 0
+function GameGetFrameNum() return frame end
+
 -- ---- load the mod exactly as Noita would --------------------------------------
 dofile("init.lua")
 OnWorldInitialized() -- the hook can't install off-Windows; this must not throw
@@ -72,8 +76,9 @@ gui.ready = true -- the stub handle exists; pretend we're inside a frame
 local card = dofile_once("mods/noita-tooltip-example/files/card.lua")
 
 -- Render one CARDS entry the way OnWorldPostUpdate does, from a capture at (100,60).
--- Prints it as ASCII and returns: draw list, joined text, { text -> y within card }.
-local function render(action_id)
+-- Prints it as ASCII (unless quiet) and returns: draw list, joined text,
+-- { text -> y within card }, and the card's top-left x.
+local function render(action_id, quiet)
 	draws = {}
 	local meta, rows = _G.tooltip_example_cards[action_id]()
 	local w, h = card.card_size({ gui = gui }, meta, rows)
@@ -94,24 +99,26 @@ local function render(action_id)
 		end
 	end
 
-	local maxy, cols = 0, math.floor(w / 5)
-	for cy in pairs(grid) do maxy = math.max(maxy, cy) end
-	print(("\n%s — card %dx%d, %d rows, %d description line(s)"):format(
-		action_id, w, h, #rows, type(meta.description) == "table" and #meta.description or 1))
-	print("+" .. string.rep("-", cols) .. "+")
-	for cy = 0, maxy do
-		local line = {}
-		for cx = 1, cols do line[cx] = (grid[cy] and grid[cy][cx]) or " " end
-		print("|" .. table.concat(line) .. "|")
+	if not quiet then
+		local maxy, cols = 0, math.floor(w / 5)
+		for cy in pairs(grid) do maxy = math.max(maxy, cy) end
+		print(("\n%s — card %dx%d, %d rows, %d description line(s)"):format(
+			action_id, w, h, #rows, type(meta.description) == "table" and #meta.description or 1))
+		print("+" .. string.rep("-", cols) .. "+")
+		for cy = 0, maxy do
+			local line = {}
+			for cx = 1, cols do line[cx] = (grid[cy] and grid[cy][cx]) or " " end
+			print("|" .. table.concat(line) .. "|")
+		end
+		print("+" .. string.rep("-", cols) .. "+")
 	end
-	print("+" .. string.rep("-", cols) .. "+")
-	return draws, table.concat(text, "\n"), ys
+	return draws, table.concat(text, "\n"), ys, x
 end
 
 local function check(cond, msg) if not cond then error("FAIL: " .. msg, 0) end end
 
 -- ---- SPARK BOLT: the native card + our two additions ---------------------------
-local d, txt, ys = render("LIGHT_BULLET")
+local d, txt, ys, ox = render("LIGHT_BULLET")
 
 check(txt:find("SPARK BOLT", 1, true), "title is uppercased")
 check(not txt:find("SPARK BOLT (", 1, true), "an unlimited-use spell gets no (N) suffix")
@@ -152,12 +159,46 @@ check(is_pink(drawn("Dmg. Cute")), "the Dmg. Cute label is pink")
 check(is_pink(drawn("7")), "the Dmg. Cute value is pink")
 check(not is_pink(drawn("Graham")), "an uncoloured row keeps the native grey")
 
+-- The animated row. Its label is one GuiText PER LETTER (that's the only way to get
+-- more than one colour into a line), the letters differ in hue, and the whole thing
+-- must MOVE with the frame number — otherwise it's just a static gradient.
+-- Single-char draws in the LABEL column can only be the rainbow's letters: every
+-- other row's label is a whole word in one draw. (Single chars in the VALUE column
+-- are ordinary values like "3" and "5", hence the column filter.)
+local function rainbow_letters(draw_list, ox)
+	local out = {}
+	for _, dr in ipairs(draw_list) do
+		if dr.k == "txt" and #dr.s == 1
+			and dr.x >= ox + card.LABEL_X and dr.x < ox + card.VALUE_X then
+			out[#out + 1] = dr
+		end
+	end
+	return out
+end
+local letters = rainbow_letters(d, ox)
+check(#letters == #"Dmg. Pride", "the rainbow label is one span per letter, got " .. #letters)
+check(letters[1].c and letters[#letters].c, "every letter carries its own colour")
+local function same(a, b) return math.abs(a[1] - b[1]) < 0.01 and math.abs(a[2] - b[2]) < 0.01
+	and math.abs(a[3] - b[3]) < 0.01 end
+check(not same(letters[1].c, letters[5].c), "letters across the label differ in hue")
+check(letters[2].x > letters[1].x, "letters are laid out left to right")
+check(drawn("6").c and not same(drawn("6").c, { card.TEXT_R, card.TEXT_G, card.TEXT_B }),
+	"the rainbow row's value is coloured too, not the native grey")
+
+-- ...and it MOVES. Without this it's just a static gradient.
+local frame0 = letters[1].c
+frame = 30 -- half a second later
+local d2, _, _, ox2 = render("LIGHT_BULLET", true)
+local frame30 = rainbow_letters(d2, ox2)[1].c
+check(not same(frame0, frame30), "the rainbow scrolls: the same letter changes hue over time")
+frame = 0
+
 -- Geometry: a 2nd description line pushes the row block down exactly one line (8px)
 -- from the native first-row y of 37.
 check(ys["Type"] == 37 + 8 + card.TEXT_DY, "rows shift one line for the 2nd desc line, got " .. tostring(ys["Type"]))
 check(ys["Damage"] - ys["Mana drain"] == 16, "blank line after the header block")
 check(ys["Dmg. Cute"] - ys["Damage"] == 8, "the pink row sits in the projectile-stats block, 8px pitch")
-check(ys["Speed"] - ys["Dmg. Cute"] == 8, "...and pushes Speed down one line, not out of the block")
+check(ys["Speed"] - ys["Dmg. Cute"] == 16, "the rainbow row sits below it; Speed moves down, stays in the block")
 check(ys["Cast delay"] - ys["Speed"] == 16, "blank line before the modifier block")
 check(ys["Spread"] - ys["Cast delay"] == 8, "8px pitch inside a block")
 check(ys["Graham"] - ys["Crit. Chance"] == 16, "blank line before the custom row")
@@ -175,5 +216,6 @@ check(not txt2:find("Speed", 1, true), "a modifier has no projectile-stats block
 check(ys2["Type"] == 37 + card.TEXT_DY, "a single-description card keeps the native first-row y")
 check(ys2["Cast delay"] - ys2["Mana drain"] == 16, "blank line after the header block")
 
-print("\nOK — Spark Bolt: native card + 1 description line + 2 custom rows (one pink).")
+print("\nOK — Spark Bolt: native card + 1 description line + 3 custom rows")
+print("     (one pink, one a per-letter rainbow that scrolls with the frame number).")
 print("     Damage Plus: native card reproduced exactly.")

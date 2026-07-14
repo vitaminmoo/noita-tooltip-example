@@ -36,6 +36,14 @@
 --     r, g, b : optional 0..1 colour for the row's label AND value. Omit for the
 --               native grey. (The native card paints every row the same colour;
 --               a row that stands out is one more thing it cannot do.)
+--     label / value are LINES, same as a description line — so either can be a list
+--               of spans, and a per-letter gradient is just a label whose spans are
+--               single characters. See the rainbow row in init.lua.
+--
+-- ANIMATION: none of this is retained. The card is rebuilt and redrawn from scratch
+-- every frame, so anything you can write as a function of the frame number is
+-- animated for free — colours, values, x offsets. The one rule is that widget IDS
+-- must not change with it (see draw_line): animate the ARGUMENTS, never the id.
 
 local M = {}
 
@@ -55,6 +63,7 @@ M.TEXT_R, M.TEXT_G, M.TEXT_B = 209 / 255, 208 / 255, 208 / 255
 M.BG = "data/ui_gfx/decorations/9piece0_gray.png"
 M.FONT = "data/fonts/font_pixel_noshadow.xml"
 M.PANEL_ID = 81000                    -- base widget id (see gui.lua on ids)
+M.SPAN_IDS = 32                       -- widget ids reserved per row label / value
 M.ANIM_FADE_SPEED = 0.07              -- the native card's own fade-in rate
 
 -- The native card flips ABOVE the anchor when it would reach past half the
@@ -112,11 +121,15 @@ local function line_width(gui, line)
 end
 
 -- Draw one line at (x, y), span by span, each in its own colour. `id` is the base
--- widget id for the line; spans take id, id+1, ... (ids must stay stable per frame).
-local function draw_line(gui, id, x, y, line)
+-- widget id for the line; spans take id, id+1, ... — ids must stay stable frame to
+-- frame, so they're derived from the span's INDEX, never from its content or colour.
+-- (That's what lets a span's colour change every frame without the widget flickering
+-- or its fade-in restarting: same id, different argument.)
+-- dr/dg/db is the colour for spans that don't specify one.
+local function draw_line(gui, id, x, y, line, dr, dg, db)
+	dr, dg, db = dr or M.TEXT_R, dg or M.TEXT_G, db or M.TEXT_B
 	for i, s in ipairs(spans_of(line)) do
-		gui.text_ex(id + i - 1, x, y, s.t or "",
-			s.r or M.TEXT_R, s.g or M.TEXT_G, s.b or M.TEXT_B, 1, 1, M.FONT)
+		gui.text_ex(id + i - 1, x, y, s.t or "", s.r or dr, s.g or dg, s.b or db, 1, 1, M.FONT)
 		x = x + select(1, gui.text_dims(s.t or ""))
 	end
 end
@@ -215,13 +228,16 @@ function M.draw_card(ctx, rect, meta, rows)
 	for j, r in ipairs(rows) do
 		local ry = y + row_y
 		local rr, rg, rb = r.r or M.TEXT_R, r.g or M.TEXT_G, r.b or M.TEXT_B
+		-- label and value are lines, so either can be spans — a per-letter gradient is
+		-- just a label whose spans are single characters. Each field gets its own id
+		-- block (SPAN_IDS wide) so the spans of row 3 can never collide with row 4's.
+		local label_id = base + 1000 + (j - 1) * M.SPAN_IDS * 2
+		local value_id = label_id + M.SPAN_IDS
 		if r.icon then gui.image(base + 100 + j, x + M.ICON_X, ry + M.ICON_DY, r.icon, 1, 1) end
 		if r.label and r.label ~= "" then
-			gui.text_ex(base + 200 + j, x + M.LABEL_X, ry + M.TEXT_DY, r.label,
-				rr, rg, rb, 1, 1, M.FONT)
+			draw_line(gui, label_id, x + M.LABEL_X, ry + M.TEXT_DY, r.label, rr, rg, rb)
 		end
-		gui.text_ex(base + 300 + j, x + M.VALUE_X, ry + M.TEXT_DY, r.value or "",
-			rr, rg, rb, 1, 1, M.FONT)
+		draw_line(gui, value_id, x + M.VALUE_X, ry + M.TEXT_DY, r.value or "", rr, rg, rb)
 		row_y = row_y + (r.adv or M.PITCH)
 	end
 

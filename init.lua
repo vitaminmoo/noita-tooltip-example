@@ -47,6 +47,43 @@ local IC = "data/ui_gfx/inventory/"       -- vanilla row icons (7x7)
 local MINE = BASE                         -- our own art lives beside our code
 local PITCH, GAP = 8, 16                  -- row advance: next line / next line + a blank
 
+-- ---- animation ---------------------------------------------------------------
+-- Nothing about the card is retained: the builder below runs and the card is redrawn
+-- EVERY frame. So animation needs no animation system — just make a colour (or a
+-- value, or an offset) a function of the frame number. The only rule: widget ids
+-- must stay stable, so animate the arguments and never the id (see files/card.lua).
+
+-- hue (0..1, wrapping) -> r, g, b at full saturation.
+local function hue_rgb(h)
+	h = h % 1
+	local sector = math.floor(h * 6)
+	local f = h * 6 - sector
+	if sector == 0 then return 1, f, 0
+	elseif sector == 1 then return 1 - f, 1, 0
+	elseif sector == 2 then return 0, 1, f
+	elseif sector == 3 then return 0, 1 - f, 1
+	elseif sector == 4 then return f, 0, 1
+	else return 1, 0, 1 - f end
+end
+
+local CYCLE_HZ = 0.35 -- full rainbow every ~3 s
+local SPREAD = 0.055  -- hue step per character: how "tight" the gradient looks
+
+-- text -> a span per character, each a different hue, the whole gradient scrolling
+-- with time. A label or a value can be spans exactly like a description line can, so
+-- this drops straight into a row. (Noita paints one GuiText in one colour — a
+-- per-letter rainbow is therefore literally one widget per letter.)
+local function rainbow(text, phase_offset)
+	local frame = (GameGetFrameNum and GameGetFrameNum()) or 0
+	local phase = frame / 60 * CYCLE_HZ + (phase_offset or 0)
+	local spans = {}
+	for i = 1, #text do
+		local r, g, b = hue_rgb(phase + (i - 1) * SPREAD)
+		spans[i] = { t = text:sub(i, i), r = r, g = g, b = b }
+	end
+	return spans
+end
+
 -- The two header rows every spell card starts with.
 local function type_row(type_key) -- e.g. "projectile", "modifier"
 	return { icon = IC .. "icon_action_type.png", label = loc("$inventory_actiontype"),
@@ -109,6 +146,14 @@ CARDS.LIGHT_BULLET = function()
 		{ icon = MINE .. "icon_cute.png", label = "Dmg. Cute", value = "7", adv = PITCH,
 			r = 0.96, g = 0.44, b = 0.66 }, -- pink
 
+		-- ADDITION 3: an ANIMATED row. The label is one span per letter, each a
+		-- different hue, and the whole gradient scrolls because the hue is a function
+		-- of the frame number and this builder re-runs every frame. The value picks up
+		-- the sweep where the label left off, so they read as one continuous rainbow.
+		-- Nothing in Noita's GUI animates this for us — it costs one GuiText per letter.
+		{ icon = MINE .. "icon_pride.png", label = rainbow("Dmg. Pride"),
+			value = rainbow("6", #"Dmg. Pride" * SPREAD), adv = PITCH },
+
 		{ icon = IC .. "icon_speed_multiplier.png", label = loc("$inventory_speed"),
 			value = "800", adv = GAP },
 		-- what casting it does to the wand
@@ -119,7 +164,7 @@ CARDS.LIGHT_BULLET = function()
 		{ icon = IC .. "icon_damage_critical_chance.png", label = loc("$inventory_mod_critchance"),
 			value = "+5%", adv = GAP },
 
-		-- ADDITION 3: a stat the game has no concept of. A row is just data —
+		-- ADDITION 4: a stat the game has no concept of. A row is just data —
 		-- icon, label, value, advance — so a made-up one costs exactly what a real
 		-- one costs. The icon ships with the mod (7x7, the size vanilla's are); a
 		-- vanilla 'data/...' path works just as well.
