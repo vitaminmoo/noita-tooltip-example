@@ -1,0 +1,6 @@
+<Mod
+	name="Tooltip Example (Spark Bolt)"
+	description="Minimal example: overrides the native spell hover card for Spark Bolt to add one description line. Needs unsafe mods enabled (the card renderer is C++; overriding it needs a raw hook)."
+	request_no_api_restrictions="1"
+>
+</Mod>
